@@ -403,6 +403,48 @@
     return `https://via.placeholder.com/96/222/fff?text=${encodeURIComponent(letter)}`;
   }
 
+  // Return ordered candidate URLs for an icon so callers can try fallbacks.
+  function resolveIconCandidates(name, providedIcon){
+    const list = [];
+    if(providedIcon && typeof providedIcon === 'string'){
+      if(/^[a-z]+:\/\//i.test(providedIcon)) return [providedIcon];
+      if(providedIcon.startsWith('/assets/') || providedIcon.startsWith('/wallets/')) list.push(providedIcon);
+      if(providedIcon.startsWith('assets/') || providedIcon.startsWith('wallets/')) list.push(providedIcon);
+      if(!providedIcon.startsWith('/')) list.push(`assets/${providedIcon}`);
+    }
+    // Also generate lookup-based candidates
+    const safeName = (name||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');
+    const exts = ['png','jpeg','jpg','svg'];
+    exts.forEach(ext=>{
+      list.push(`assets/${safeName}.${ext}`);
+      list.push(`/assets/${safeName}.${ext}`);
+      list.push(`wallets/${safeName}.${ext}`);
+      list.push(`/wallets/${safeName}.${ext}`);
+    });
+    // final fallback placeholder
+    list.push(`https://via.placeholder.com/96/222/fff?text=${encodeURIComponent((name&&name[0])?name[0].toUpperCase():'W')}`);
+    return list;
+  }
+
+  // Attempt sequential image loads from candidates and set the first successful src on imgEl
+  function loadImageWithFallbacks(imgEl, candidates){
+    if(!imgEl || !candidates || !candidates.length) return;
+    let idx = 0;
+    function tryNext(){
+      if(idx >= candidates.length){
+        // nothing worked
+        return;
+      }
+      const url = candidates[idx++];
+      const test = new Image();
+      test.onload = function(){ imgEl.src = url; };
+      test.onerror = function(){ tryNext(); };
+      // kick off
+      test.src = url;
+    }
+    tryNext();
+  }
+
   function createWalletCard(entry){
     const name = typeof entry === 'string' ? entry : (entry.name || 'Unknown');
     const icon = typeof entry === 'string' ? '' : (entry.icon || '');
