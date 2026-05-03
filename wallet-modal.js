@@ -372,14 +372,16 @@
   function getIconFromManifestByName(name){return null;}
   function resolveIconUrl(name, providedIcon){
     if (providedIcon) {
-      // Normalize provided icon paths so they are absolute where appropriate
+      // Normalize provided icon paths but prefer relative paths so
+      // deployments under a nested base path still resolve correctly.
       if (typeof providedIcon === 'string') {
         if (/^[a-z]+:\/\//i.test(providedIcon)) return providedIcon; // remote url
+        // Keep absolute paths as-is
         if (providedIcon.startsWith('/assets/') || providedIcon.startsWith('/wallets/')) return providedIcon;
-        if (providedIcon.startsWith('assets/')) return `/${providedIcon}`;
-        if (providedIcon.startsWith('wallets/')) return `/${providedIcon}`;
-        // if a bare filename was provided (e.g. 'Metamask.png'), load from `/assets/`
-        if (!providedIcon.startsWith('/')) return `/assets/${providedIcon}`;
+        // Prefer returning relative 'assets/...' or 'wallets/...' (no leading slash)
+        if (providedIcon.startsWith('assets/') || providedIcon.startsWith('wallets/')) return providedIcon;
+        // if a bare filename was provided (e.g. 'Metamask.png'), load from `assets/` relative path
+        if (!providedIcon.startsWith('/')) return `assets/${providedIcon}`;
         return providedIcon;
       }
     }
@@ -390,10 +392,11 @@
     const exts = ['png','jpeg','jpg','svg'];
     // prefer absolute `/assets/...` paths (project assets folder), fallback to `/wallets/...` if present
     exts.forEach(ext=>{
-      candidates.push(`/assets/${lookupName}.${ext}`);
+      // prefer relative project-local paths first
       candidates.push(`assets/${lookupName}.${ext}`);
-      candidates.push(`/wallets/${lookupName}.${ext}`);
+      candidates.push(`/assets/${lookupName}.${ext}`);
       candidates.push(`wallets/${lookupName}.${ext}`);
+      candidates.push(`/wallets/${lookupName}.${ext}`);
     });
     if(candidates.length > 0) return candidates[0];
     const letter = (name && name[0]) ? name[0].toUpperCase() : 'W';
